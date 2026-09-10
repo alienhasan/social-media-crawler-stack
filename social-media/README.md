@@ -19,7 +19,7 @@ own logged-in accounts** using [Crawl4AI](https://github.com/unclecode/crawl4ai)
 | `browser_stealth.py` | **Browser-authenticity (stealth) config** shared by `login.py` and `server.py` — real Linux Chrome/151 UA, realistic viewport, `navigator.webdriver` hidden, WebGL kept alive, `window.chrome.runtime` restored, notifications permission normalized, persistent profiles. |
 | `test_cleaner.py` | Unit tests for the cleaner (Facebook fixture — 27 assertions). |
 | `test_cleaner_twitter.py` | Unit tests for the cleaner (Twitter/X fixture — 31 assertions). |
-| `test_cleaner_instagram.py` | Unit tests for the cleaner (Instagram fixture — 35 assertions). |
+| `test_cleaner_instagram.py` | Unit tests for the cleaner (Instagram fixture — 46 assertions). |
 
 **Pipeline (Facebook):**
 
@@ -70,7 +70,7 @@ POST /crawl {"url": "https://www.instagram.com/<user>/"} ───────�
 ├── cleaner.py        # (23 KB) Data cleaner: 3-tier line-based FB + Twitter/X + Instagram noise filter
 ├── test_cleaner.py   # (4.9 KB) Unit tests for cleaner.py Facebook path (27 assertions)
 ├── test_cleaner_twitter.py  # (4.9 KB) Unit tests for cleaner.py Twitter/X path (31 assertions)
-├── test_cleaner_instagram.py# (5.6 KB) Unit tests for cleaner.py Instagram path (35 assertions)
+├── test_cleaner_instagram.py# (7.5 KB) Unit tests for cleaner.py Instagram path (46 assertions)
 ├── fb_state.json     # (2.3 KB) Saved Facebook session (cookies + origins) — YOUR login
 ├── twitter_state.json# (created by `login.py --platform twitter`) Saved X session
 ├── ig_state.json     # (created by `login.py --platform instagram`) Saved Instagram session
@@ -561,21 +561,31 @@ is neither FB's nor X's):
 comment asking for a price). The suggested-handle line is a known survivor —
 see section 3.5.
 
-**Measured on live crawls of public accounts (2026-09-10, anonymous session —
-Instagram shows a login interstitial when logged out, so treat these as the
-worst case, not the authenticated case):**
+**Measured on live crawls of public accounts (2026-09-10):**
 
-| URL | Raw markdown | Cleaned | Removed | Kept |
-|---|---|---|---|---|
-| `instagram.com/nike/` (profile, 4 scroll steps) | 11,637 chars | 49 chars | 100 % | 4 lines (username, name, bio, bio link) |
-| `instagram.com/nike/p/DcwHiIvDv5Q/` (single post, 3 scroll steps) | 19,587 chars | 1,490 chars | **92 %** | 19 lines — the caption **and 15 real comments with their author handles + timestamps** |
-| `instagram.com/nikebasketball/` (profile, 6 scroll steps) | 22,272 chars | 217 chars | 99 % | 12 lines |
+| Session | URL (max_scroll_steps) | Raw markdown | Cleaned | Removed | What survived |
+|---|---|---|---|---|---|
+| anonymous | `instagram.com/nike/` (4) | 11,637 | 49 | 100 % | username / name / bio / bio-link only — logged-out serves a login interstitial |
+| anonymous | `instagram.com/nike/p/DcwHiIvDv5Q/` (3) | 19,587 | 1,490 | 92 % | caption + 15 real comments (handles + timestamps) |
+| anonymous | `instagram.com/nikebasketball/` (6) | 22,272 | 217 | 99 % | profile header only |
+| **logged in** | `instagram.com/` (home feed, 2) | 12,604 | 267 | **98 %** | 5 real feed items with captions and handles |
+| **logged in** | `instagram.com/nikebasketball/` (6) | 18,182 | 1,023 | **94 %** | profile header + **11 real post captions** (product/launch copy) |
+| **logged in** | `instagram.com/nike/p/DcwHiIvDv5Q/` (4) | 22,619 | 412 | **98 %** | caption + commenter handles + comment text |
 
-The single-post result is the one that matters for lead-gen: the caption, the
-commenter handles and the comment text (including a comment asking Nike to sign
-someone) all survive, while the nav rail, badges, tag row, "Load more comments",
-"More options", the Threads CTA and the login wall are removed. Post HTML is
-~1 MB per page; the cleaner is what makes it usable.
+Post pages are ~1-1.9 MB of HTML and ~12-23 KB of raw markdown; the cleaner is
+what makes them usable. The logged-in DOM adds two noise families the anonymous
+crawl never shows, both now filtered:
+
+- **doubled nav labels** — the logged-in nav rail renders icon alt-text *plus*
+  the label, so lines read `Reels Reels`, `Search Search`, `Notifications
+  Notifications`, `New post Create`, `Settings More`, `Also from Meta Also from Meta`;
+- **CDN media blobs** — post images arrive as nested markdown
+  (`[![caption](https://…fbcdn.net/…?stp=dst-jpg…)`) whose signed URLs run
+  thousands of characters. Before the fix one profile crawl returned 8,124 chars
+  of which nearly all was URL; after the fix the same crawl returns 1,023 chars
+  of actual captions. `[![` fragments and long `fbcdn.net` / `cdninstagram.com`
+  lines are dropped in `_clean_line()`; the badge-glued `NameVerified` line and
+  the `You'll see…`-style notification prompts are dropped by the pattern set.
 
 ---
 
@@ -927,9 +937,9 @@ Everything below was **executed and confirmed** on this machine:
 | `POST /crawl` real post `https://www.instagram.com/nike/p/DcwHiIvDv5Q/` (3 scroll steps) | ✅ 995 KB HTML, 19,587 chars → **1,490 chars (92 % removed)**; caption + **15 real comments with author handles and timestamps** kept, all IG chrome removed |
 | `POST /crawl` `https://www.instagram.com/nikebasketball/` (6 scroll steps) | ✅ 921 KB HTML, 22,272 chars → 217 chars (99 % removed) |
 | Twitter routing regression (`x.com` URL, no X session) | ✅ still returns the Twitter session-missing error, not the Instagram one |
-| `test_cleaner_instagram.py` | ✅ **35/35 assertions pass** (nav rail, Follow/Message, stats, Suggested for you, `Liked by … and N others`, login wall, consent line, icon alt-text, footer links, language blob, Bengali IG UI removed; username/bio/location/real comments kept) |
+| `test_cleaner_instagram.py` | ✅ **46/46 assertions pass** (nav rail, doubled logged-in nav labels, Follow/Message, stats, Suggested for you, `Liked by … and N others`, login wall, consent line, icon alt-text, CDN image blobs, badge-glued names, notification prompts, footer links, language blob, Bengali IG UI removed; username/bio/location/real comments kept) |
 | Facebook + Twitter cleaner regression | ✅ 27/27 and 31/31 still pass with the Instagram code in place |
-| ⚠️ **NOT tested:** authenticated Instagram crawl (a logged-in IG profile/post) | ❌ requires `login.sh instagram` with your own credentials — the agent has none. The anonymous results above are the worst case (IG serves a login interstitial); run it once and the profile/post content replaces the interstitial lines |
+| **Authenticated Instagram crawl** (`login.sh instagram`, session confirmed by `/health` → `instagram_session_loaded: true`) | ✅ logged-in home feed renders real feed items (12,604 → 267 chars, 98 % removed); profile now returns **post captions** (18,182 → 1,023, 94 %); single post 22,619 → 412 (98 %) with caption + commenters + comment text |
 
 **Stealth hardening (added 2026-08-06):**
 

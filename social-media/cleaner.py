@@ -314,6 +314,20 @@ INSTAGRAM_NOISE_PATTERNS = [
     r"^\s*(home|search|explore|reels?|messages?|notifications?|create|profile|threads|more|settings|your activity|saved|close friends|switch appearance|log out|meta ai|ai studio|archive|insights|professional dashboard|ad tools|supervision|monetization|orders and earnings|crossposting|not interested|about this account|block|restrict|unfollow|copy profile url)\s*$",
     r"^(home|search|explore|reels|messages|notifications|create|profile|threads|more){2,}\s*$",   # concatenated nav
     r"^(posts|reels|tagged|photos|videos|saved|reposts|followers|following){2,}\s*$",            # concatenated profile tabs
+    # logged-in nav rail renders icon-alt + label -> "Reels Reels", "Search Search"
+    r"^((?:home|search|explore|reels|messages|notifications|create|profile|threads|more|settings))\s+\1\s*$",
+    r"^\s*(new post|create)\s+create\s*$",
+    r"^\s*settings\s+(more|less)\s*$",
+    r"^\s*also from meta\b",
+    r"^\s*instagram recommended\b",
+    r"^\s*similar accounts\s*$",
+    r"^\s*original audio\s*$",
+    r"^\s*audio is muted\b",
+    r"^\s*turn on notifications\b",
+    r"^\s*turn on\s*not now\s*$",
+    r"^\s*know right away when people\b",
+    r"^\s*verified and\b",
+    r"^.{0,40}verified\s*$",           # "Sonakshi SinhaVerified" (badge glued to name)
     # --- English: action bar ---
     r"^\s*(like|unlike|comment|share|send|save|saved|reply|embed|report|copy link|tag|remix|use audio|add to story|pin|unpin|edit|delete|translate|translation|cancel|back|next|done)\s*$",
     r"^(like|comment|share|save|send)\b.*\b(like|comment|share|save|send)\b",
@@ -366,6 +380,13 @@ EMOJI_ONLY = re.compile(
     r"^\s*[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F\u200D\u20E3\s]+\s*$"
 )
 
+# Instagram/Facebook image+video CDN URLs. Post media is surfaced by Crawl4AI as
+# nested markdown ("[![caption](https://…fbcdn.net/…?stp=dst-jpg…)"); the signed
+# URL is often thousands of characters and carries nothing useful for lead-gen.
+CDN_BLOB = re.compile(r"(?:fbcdn\.net|cdninstagram\.com)/", re.I)
+# A nested/incomplete markdown image fragment ("[![caption" split across lines)
+BROKEN_IMAGE = re.compile(r"\[!\[")
+
 # preprocessing-এ ব্যবহৃত
 # URL অংশে escaped paren \( \) থাকতে পারে (SVG data-URI), তাই [^)]* নয় —
 # (?:[^()\\]|\\.)* দিয়ে escaped sequence-গুলোকে এক ইউনিট ধরা হয়
@@ -404,6 +425,12 @@ def _clean_line(line: str):
     # giant image/data-URI ব্লব পুরোপুরি বাদ
     line = IMAGE_LINK.sub("", line)
     if "data:image/" in line or "fbcdn.net/rsrc.php" in line:
+        return None
+    # Instagram: nested image-markdown fragments + huge signed CDN media URLs
+    # (long line + CDN host, or an obviously broken "[![" fragment)
+    if BROKEN_IMAGE.search(line):
+        return None
+    if CDN_BLOB.search(line) and (len(line) > 120 or URL_ONLY.match(line)):
         return None
     # percent-encoded junk (SVG-এর ভাঙা টুকরো) বাদ
     if ENCODED_JUNK.search(line):

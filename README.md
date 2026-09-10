@@ -101,14 +101,20 @@ Everything below was executed, not reviewed:
 |---|---|
 | `setup.sh` full rebuild into a throwaway sandbox (`/tmp`, no path inside the live tree) | ✅ 97 packages, chromium 1234 + headless shell + ffmpeg, verify block green |
 | Restored copy relocates | ✅ `sys.prefix` / `crawl4ai.__file__` / `playwright.__file__` all resolve inside the sandbox |
-| Test suite on the restored venv | ✅ `test_cleaner.py` 27/27, `test_cleaner_twitter.py` 31/31, `test_cleaner_instagram.py` 35/35 |
+| Test suite on the restored venv | ✅ `test_cleaner.py` 27/27, `test_cleaner_twitter.py` 31/31, `test_cleaner_instagram.py` 46/46 |
 | Restored server boot + `GET /health` | ✅ `{"status":"ok","instagram_session_loaded":true,...}` |
-| `POST /crawl` real Instagram post (`instagram.com/nike/p/DcwHiIvDv5Q/`) | ✅ 995 KB HTML → 19,587 chars → **1,490 chars (92 % removed)**; caption + 15 real comments kept |
-| `POST /crawl` real Instagram profile (`instagram.com/nikebasketball/`) | ✅ 22,272 chars → 217 chars (99 % removed) |
+| `POST /crawl` real Instagram post (`instagram.com/nike/p/DcwHiIvDv5Q/`) | ✅ 1.85 MB HTML → 22,619 chars → **412 chars (98 % removed)**; caption + commenter handles + comment text kept |
+| `POST /crawl` real Instagram profile (`instagram.com/nikebasketball/`) | ✅ 18,182 chars → 1,023 chars (94 %); profile header + 11 real post captions |
+| `POST /crawl` logged-in Instagram home feed | ✅ 12,604 chars → 267 chars (98 %); real feed items only |
 | Facebook / Twitter routing regressions | ✅ unchanged (session-missing errors and crawls route to the right platform) |
 
-Not covered: an **authenticated** Instagram crawl — that needs `login.sh instagram`
-with your own credentials.
+The **authenticated** Instagram path is verified too: with `login.sh instagram`
+done, `/health` reports `instagram_session_loaded: true` and profile/post crawls
+return real captions and comments instead of the logged-out interstitial. The
+logged-in DOM exposed two extra noise families (doubled nav labels like
+`Reels Reels`, and multi-KB `fbcdn.net` image-URL blobs) — both are now filtered,
+and every line observed in these live crawls is a regression assertion in
+`test_cleaner_instagram.py`.
 
 See `RESTORE.md` for the mapping against the local full backup
 (`~/backups/social-media-full-backup-2026-08-06.tar.gz`, 832 MB).

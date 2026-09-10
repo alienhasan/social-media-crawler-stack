@@ -53,6 +53,23 @@ nike and 2 others
 Load more comments
 More options
 Threads hasan_automation
+Reels Reels
+Messages Messages
+Search Search
+Notifications Notifications
+New post Create
+Settings More
+Also from Meta Also from Meta
+Instagram recommended
+Similar accounts
+Original audio
+Audio is muted Tags
+Turn on Notifications
+Know right away when people follow you or like and comment on your photos.
+Turn OnNot Now
+Sonakshi SinhaVerified
+[![No moment is too small to win.
+Grab the Sabrina 4 “The Switch” launching 9.5](https://instagram.fdac110-1.fna.fbcdn.net/v/t51.82787-15/791144760_18627521548035900_8030782657832792891_n.jpg?stp=dst-jpg_e15_tt6&_nc_cat=106&ig_cache_key=Mzk3NzM1Mzk4NzIzMzgxNzcxOA%3D%3D.3-ccb7-5)
 ফলো করুন
 শেয়ার
 সেভ
@@ -112,6 +129,18 @@ def main():
     check("load-more-comments removed", "Load more comments" not in cleaned)
     check("'More options' menu removed", "More options" not in cleaned)
     check("Threads CTA line removed", "Threads hasan_automation" not in cleaned)
+    # real lines observed in a live AUTHENTICATED crawl (2026-09-10, logged-in feed)
+    check("doubled nav labels removed", not any(x in cleaned for x in ("Reels Reels", "Messages Messages", "Search Search", "Notifications Notifications")))
+    check("'New post Create' removed", "New post Create" not in cleaned)
+    check("'Settings More' removed", "Settings More" not in cleaned)
+    check("'Also from Meta' removed", "Also from Meta" not in cleaned)
+    check("'Instagram recommended' removed", "Instagram recommended" not in cleaned)
+    check("'Similar accounts' removed", "Similar accounts" not in cleaned)
+    check("audio chrome removed", "Original audio" not in cleaned and "Audio is muted" not in cleaned)
+    check("notification prompts removed", "Turn on Notifications" not in cleaned and "Know right away when people" not in cleaned and "Turn OnNot Now" not in cleaned)
+    check("glued badge on a name removed", "Sonakshi SinhaVerified" not in cleaned)
+    check("CDN image blob removed", "fbcdn.net" not in cleaned and "stp=dst-jpg" not in cleaned)
+    check("broken image-markdown fragment removed", "No moment is too small" not in cleaned)
     check("bengali UI removed", "ফলো করুন" not in cleaned and "সেভ" not in cleaned and "আরও দেখুন" not in cleaned)
     # kept: username, bio/caption, location, suggested-handle line, real comment
     check("kept_lines == 5", res["kept_lines"] == 5)
