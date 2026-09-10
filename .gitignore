@@ -1,0 +1,24 @@
+# secrets / session cookies - never commit
+fb_state.json
+twitter_state.json
+*.state.json
+
+# live browser profiles (login cookies)
+browser_profiles/
+fb-login/
+
+# python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# crawl4ai runtime cache
+.crawl4ai/
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
