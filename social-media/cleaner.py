@@ -258,6 +258,93 @@ TWITTER_NOISE_PATTERNS = [
     r"^\s*যাচাইকৃত\s*$",
 ]
 
+# ---------------------------------------------------------------------------
+# INSTAGRAM tiers — ইনস্টাগ্রামের chrome FB/X থেকে আলাদা, তাই আলাদা pattern সেট।
+# clean_markdown(platform="instagram") দিলে এগুলো ব্যবহৃত হয়।
+# ---------------------------------------------------------------------------
+INSTAGRAM_STRONG_LABELS = [
+    r"^log in\b",                     # login wall / "Log in to like or comment"
+    r"^log into instagram",
+    r"^sign up\b",
+    r"^create an account or log in",
+    r"^switch accounts?",
+    r"^edit profile",
+    r"^share profile",
+    r"^add a comment",
+    r"^see photos and videos from",   # "See photos and videos from <user>"
+    r"^never miss a post",
+    r"^something went wrong",
+    r"^suggested for you",
+    r"^more posts from",
+    r"^view more on instagram",
+    r"^discover people",
+    r"^accounts you follow",
+    r"^meta verified",
+    r"^instagram lite",
+    r"^contact uploading and non-users",
+    r"^threads terms",
+    r"^see everyday moments from your close friends",
+]
+
+INSTAGRAM_ALL_LINE_PATTERNS = [
+    r"log in to like or comment",
+    r"create an account or log in",
+    r"see photos and videos from",
+    r"never miss a post",
+    r"more posts from",
+    r"view more on instagram",
+    r"instagram lite",
+    r"contact uploading and non-users",
+    r"meta verified",
+    r"threads terms",
+    r"see translation",
+    r"অনুবাদ দেখুন",
+    r"©\s*\d{4}\s*instagram from meta",   # footer copyright
+    r"instagram from meta",
+]
+
+INSTAGRAM_NOISE_PATTERNS = [
+    # --- English: nav / tabs ---
+    r"^\s*(home|search|explore|reels?|messages?|notifications?|create|profile|threads|more|settings|your activity|saved|close friends|switch appearance|log out|meta ai|ai studio|archive|insights|professional dashboard|ad tools|supervision|monetization|orders and earnings|crossposting|not interested|about this account|block|restrict|unfollow|copy profile url)\s*$",
+    r"^(home|search|explore|reels|messages|notifications|create|profile|threads|more){2,}\s*$",   # concatenated nav
+    r"^(posts|reels|tagged|photos|videos|saved|reposts|followers|following){2,}\s*$",            # concatenated profile tabs
+    # --- English: action bar ---
+    r"^\s*(like|unlike|comment|share|send|save|saved|reply|embed|report|copy link|tag|remix|use audio|add to story|pin|unpin|edit|delete|translate|translation|cancel|back|next|done)\s*$",
+    r"^(like|comment|share|save|send)\b.*\b(like|comment|share|save|send)\b",
+    r"^\s*(follow|following|follow back|followers?|requested|message|subscribe|subscribed|verified|not verified|suggested for you|see all|see more|view all|show more|view more|liked by|lIked by|and others)\s*$",
+    r"^(liked by|followed by)\b.*\b(and \d+ others?|others)\s*$",
+    r"^add a comment\s*$",
+    r"^post\s*$",
+    r"^\s*(english|english \(uk\)|english \(us\))\s*$",
+    # --- English: counts / stats / timestamps ---
+    r"^\d[\d,.]*[KMB]?\s*(likes?|comments?|views?|posts?|followers?|following|reels?|plays?)\s*$",
+    r"^\d[\d,.]*[KMB]?\s+(posts|followers|following)\s*$",
+    r"^view all \d+ comments?\s*$",
+    r"^\d{1,3}\s*(s|m|h|d|w|mo|y|sec|secs|seconds?|min|mins|minutes?|hr|hrs|hours?|days?|weeks?|months?|years?)\s*(ago)?\s*$",
+    r"^[A-Za-z]{3,9}\s+\d{1,2},\s*\d{4}\s*$",     # "January 5, 2026"
+    r"^[A-Za-z]{3,9}\s+\d{1,2}\s*$",              # "January 5"
+    r"^\d{1,2}\s+[A-Za-z]{3,9}\s*$",              # "5 January"
+    r"^(just now|now|today|yesterday)\s*$",
+    r"^\s*[·•|]\s*$",
+    # --- Instagram profile meta (business accounts) ---
+    r"^followed by\b",
+    r"^\d+\s*(posts|followers|following)\s*·",
+    r"^(posts|followers|following)\s*·\s*",
+    # --- Bengali: IG-এর বাংলা UI ---
+    r"^\s*(অনুসরণ করুন|অনুসরণ করা হচ্ছে|ফলো|ফলোয়ার|অনুসরণকারী|পছন্দ|মন্তব্য|শেয়ার|সেভ|সেভ করা|রিলস|অন্বেষণ|নোটিফিকেশন|বার্তা|প্রোফাইল|সৃষ্টি করুন|আরও দেখুন|সব দেখুন|অনুবাদ দেখুন|যাচাইকৃত|বন্ধু|সেটিংস|আপনার কার্যকলাপ|লগ আউট|বাতিল|সম্পন্ন)\s*$",
+    r"^\s*(বাংলা|ইংরেজি|হিন্দি|স্প্যানিশ|ফরাসি|জার্মান|আরবি|রুশ|জাপানি|কোরিয়ান)\s*$",
+]
+
+# Instagram footer-এর language list একটা লম্বা লাইনে জোড়া লেগে থাকে
+# ("AfrikaansČeštinaDansk…English…বাংলা")। লাইনে ৪টার বেশি ভাষার নাম পেলে বাদ।
+IG_LANG_HITS = re.compile(
+    r"(afrikaans|čeština|dansk|deutsch|ελληνικά|english|español|suomi|français|"
+    r"magyar|bahasa|italiano|日本語|한국어|nederlands|norsk|polski|português|"
+    r"русский|svenska|türkçe|中文|العربية|فارسی|עברית|ไทย|tiếng việt|हिन्दी|বাংলা|"
+    r"filipino|melayu|română|українська)",
+    re.I,
+)
+
 # সবসময় বাদ: pure-URL, separator, emoji-only, pure-number
 URL_ONLY = re.compile(r"^\s*(https?://\S+|www\.\S+)\s*$", re.I)
 SEPARATOR = re.compile(r"^\s*[-*_=~•·.](\s*[-*_=~•·.]){2,}\s*$")
@@ -286,6 +373,10 @@ _COMPILED_NOISE = [re.compile(p, re.I) for p in NOISE_PATTERNS]
 _COMPILED_TW_STRONG = [re.compile(p, re.I) for p in TWITTER_STRONG_LABELS]
 _COMPILED_TW_ALL = [re.compile(p, re.I) for p in TWITTER_ALL_LINE_PATTERNS]
 _COMPILED_TW_NOISE = [re.compile(p, re.I) for p in TWITTER_NOISE_PATTERNS]
+
+_COMPILED_IG_STRONG = [re.compile(p, re.I) for p in INSTAGRAM_STRONG_LABELS]
+_COMPILED_IG_ALL = [re.compile(p, re.I) for p in INSTAGRAM_ALL_LINE_PATTERNS]
+_COMPILED_IG_NOISE = [re.compile(p, re.I) for p in INSTAGRAM_NOISE_PATTERNS]
 
 
 def _clean_line(line: str):
@@ -323,8 +414,8 @@ def _clean_line(line: str):
 
 def _is_noise_line(line: str, extra_patterns=None, platform: str = "facebook") -> bool:
     """একটি (preprocess করা) লাইন noise কিনা চেক করে।
-    platform="twitter" হলে Twitter/X-এর pattern সেট ব্যবহার হয়;
-    ডিফল্ট "facebook" — আগের আচরণই অপরিবর্তিত থাকে।"""
+    platform="twitter" হলে Twitter/X-এর, "instagram" হলে Instagram-এর pattern
+    সেট ব্যবহার হয়; ডিফল্ট "facebook" — আগের আচরণই অপরিবর্তিত থাকে।"""
     if not line:
         return True
     if URL_ONLY.match(line) or SEPARATOR.match(line) or PURE_NUMBER.match(line):
@@ -337,8 +428,14 @@ def _is_noise_line(line: str, extra_patterns=None, platform: str = "facebook") -
 
     low = line.lower()
 
+    # Instagram footer-এর জোড়া-লাগা language list (৪+ ভাষার নাম = noise)
+    if platform == "instagram" and len(IG_LANG_HITS.findall(low)) >= 4:
+        return True
+
     if platform == "twitter":
         strong, allp, noisep = _COMPILED_TW_STRONG, _COMPILED_TW_ALL, _COMPILED_TW_NOISE
+    elif platform == "instagram":
+        strong, allp, noisep = _COMPILED_IG_STRONG, _COMPILED_IG_ALL, _COMPILED_IG_NOISE
     else:
         strong, allp, noisep = _COMPILED_STRONG, _COMPILED_ALL, _COMPILED_NOISE
 
@@ -372,8 +469,8 @@ def clean_markdown(markdown, min_block_chars=10, extra_patterns=None, dedupe=Tru
     """
     markdown থেকে noise ডেটা ফিল্টার করে dict রিটার্ন করে:
 
-    platform="twitter" দিলে Twitter/X-এর pattern সেট ব্যবহৃত হয়
-    (ডিফল্ট "facebook" — আগের আচরণ অপরিবর্তিত)।
+    platform="twitter" দিলে Twitter/X-এর, "instagram" দিলে Instagram-এর pattern
+    সেট ব্যবহৃত হয় (ডিফল্ট "facebook" — আগের আচরণ অপরিবর্তিত)।
 
     {
         "cleaned":        পরিষ্কার করা content (লাইন গুলো \n দিয়ে জোড়া),
@@ -409,7 +506,7 @@ def clean_markdown(markdown, min_block_chars=10, extra_patterns=None, dedupe=Tru
 
     for raw in text.split("\n"):
         original_lines += 1
-        if platform == "twitter" and TW_HASHTAG_ONLY.match(raw.strip()):
+        if platform in ("twitter", "instagram") and TW_HASHTAG_ONLY.match(raw.strip()):
             removed += 1
             continue
         line = _clean_line(raw)

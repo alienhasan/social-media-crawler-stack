@@ -36,15 +36,18 @@ Main files:
 - cleaner.py
 - fb_state.json
 - twitter_state.json
+- ig_state.json
 
 Authentication:
 
 - Facebook requires `fb_state.json`
 - Twitter/X requires `twitter_state.json`
+- Instagram requires `ig_state.json`
 
 If the required session is missing or expired:
 
-1. Run `login.py`
+1. Run `login.py` with the matching `--platform`
+   (`facebook` default, `twitter`, `instagram`)
 2. Log in manually.
 3. Restart `server.py`.
 
@@ -99,6 +102,7 @@ Example:
   "status": "ok",
   "session_loaded": true,
   "twitter_session_loaded": true,
+  "instagram_session_loaded": true,
   "port": 3000
 }
 ```
@@ -107,6 +111,8 @@ Only continue if:
 
 - `status == "ok"`
 
+A `..._session_loaded: false` only means that platform has not been logged in
+yet (run `login.py --platform <name>`); the other platforms still work.
 Otherwise, stop and report the problem.
 
 ---
@@ -132,6 +138,53 @@ curl -X POST http://localhost:3000/crawl \
     "url":"https://x.com/username/status/123456789"
   }'
 ```
+
+---
+
+# Crawl an Instagram Profile, Post or Reel
+
+Instagram uses the same markdown output as Facebook (no structured-JSON mode),
+with an Instagram-specific cleaner pass.
+
+Profile:
+
+```bash
+curl -X POST http://localhost:3000/crawl \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url":"https://www.instagram.com/username/"
+  }'
+```
+
+Single post / Reel:
+
+```bash
+curl -X POST http://localhost:3000/crawl \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url":"https://www.instagram.com/p/SHORTCODE/"
+  }'
+```
+
+More posts from a profile (deeper scroll):
+
+```bash
+curl -X POST http://localhost:3000/crawl \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url":"https://www.instagram.com/username/",
+    "max_scroll_steps":40
+  }'
+```
+
+Notes:
+
+- The Instagram session is chosen automatically for `instagram.com` URLs.
+- Default `max_scroll_steps` is 20 for Instagram (15 Facebook, 60 X search).
+- Instagram never returns structured JSON — the cleaned markdown keeps the
+  username, bio, location and real comments; the nav rail, Follow/Message
+  buttons, follower stats, "Suggested for you", `Liked by … and N others`, the
+  login wall and the footer language list are removed.
 
 ---
 
@@ -218,5 +271,6 @@ Twitter search responses return structured JSON containing fields such as:
 # Error Handling
 
 - If the server is not healthy, stop.
-- If the required session is missing, tell the user to run `login.py` and restart the server.
+- If the required session is missing, tell the user to run
+  `login.py --platform facebook|twitter|instagram` and restart the server.
 - Do not continue until the issue is resolved.

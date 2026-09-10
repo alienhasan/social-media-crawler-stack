@@ -1,8 +1,8 @@
 # social-media-crawler-stack
 
-Source-only bootstrap for the **authenticated Facebook / Twitter-X crawling
-server** (crawl4ai 0.9.2 + Playwright 1.62.0 + Flask). Clone this on a fresh
-WSL2 / Ubuntu machine, run one script, and you have the same working stack.
+Source-only bootstrap for the **authenticated Facebook / Twitter-X / Instagram
+crawling server** (crawl4ai 0.9.2 + Playwright 1.62.0 + Flask). Clone this on a
+fresh WSL2 / Ubuntu machine, run one script, and you have the same working stack.
 
 The live project is ~2.3 GB (venv 823 MB, browser profiles 1.5 GB, login
 cookies). **None of that is committed** — this repo is the ~180 KB of real
@@ -10,9 +10,9 @@ source, plus `setup.sh`, which regenerates the heavy parts from the network.
 
 | Committed (un-regenerable) | Not committed (rebuilt / deliberately excluded) |
 |---|---|
-| `social-media/*.py`, `README.md` | `venv/` (823 MB) → `pip install -r requirements.txt` |
+| `social-media/*.py` (`login`, `server`, `cleaner`, `browser_stealth`, 3 x `test_cleaner*`), `README.md` | `venv/` (823 MB) → `pip install -r requirements.txt` |
 | `social-media/requirements.txt` (97 pinned pkgs) | `browser_profiles/`, `fb-login/` → recreated by `login.sh` |
-| `SocialMediacrawler-skill/SKILL.md` | `fb_state.json`, `twitter_state.json` → **cookies, you asked for these out** |
+| `SocialMediacrawler-skill/SKILL.md` | `fb_state.json`, `twitter_state.json`, `ig_state.json` → **cookies, you asked for these out** |
 | `setup.sh`, `run.sh`, `login.sh` | — |
 
 ## Install
@@ -33,13 +33,14 @@ Override destinations with env vars — `PROJECT_DIR` (default
 
 ## Log in (once per platform, on the new machine)
 
-Sessions are **not** shipped — FB/X bind them to the device + IP, so a copied
+Sessions are **not** shipped — FB/X/IG bind them to the device + IP, so a copied
 cookie file is both a security problem and the main cause of "unusual login"
 flags. Do it fresh:
 
 ```bash
 bash login.sh facebook     # visible chromium -> log in -> press Enter -> fb_state.json
 bash login.sh twitter      # -> twitter_state.json
+bash login.sh instagram    # -> ig_state.json
 ```
 
 Needs a GUI: **WSLg** (Windows 11) or an X server; `login.sh` sets `DISPLAY=:0`
@@ -55,29 +56,35 @@ curl -s http://localhost:3000/health
 ```
 
 ```bash
-curl -X POST http://localhost:3000/crawl \
+curl -s http://localhost:3000/crawl \
   -H "Content-Type: application/json" \
   -d '{"url":"https://x.com/search?q=AI&src=typed_query&f=live"}'
+
+curl -s http://localhost:3000/crawl \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.instagram.com/<user>/"}'
 ```
 
 Rules the server and the skill enforce: **one URL per request**, no concurrent
-crawls, never Facebook and Twitter in the same request.
+crawls, never send Facebook and Twitter in the same request.
 
 ## Verify after install
 
 ```bash
 curl -s http://localhost:3000/health
-# {"status": "ok", "session_loaded": true, "twitter_session_loaded": true, "port": 3000}
+# {"status": "ok", "session_loaded": true, "twitter_session_loaded": true,
+#  "instagram_session_loaded": true, "port": 3000}
 ```
 
-`sessions_loaded` both `false` until you run `login.sh` — that is expected on a
-fresh machine.
+Any `..._session_loaded` that is `false` simply means that platform's
+`login.sh` has not run yet — the other platforms still work.
 
 ## Layout
 
 ```
 social-media/               login.py server.py cleaner.py browser_stealth.py
-                            test_cleaner*.py README.md requirements.txt
+                            test_cleaner.py test_cleaner_twitter.py
+                            test_cleaner_instagram.py README.md requirements.txt
 SocialMediacrawler-skill/   SKILL.md  (Hermes skill -> ~/.hermes/skills/SocialMediacrawler)
 setup.sh run.sh login.sh
 RESTORE.md                  path mapping + step-by-step restore

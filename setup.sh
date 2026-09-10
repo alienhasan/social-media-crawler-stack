@@ -11,8 +11,10 @@
 #  python venv     -> $PROJECT_DIR/venv   (rebuilt from requirements.txt, 97 pkgs)
 #  chromium build  -> $PLAYWRIGHT_BROWSERS_PATH  (chromium 1234 via playwright 1.62.0)
 #
+#  Platforms: facebook (default), twitter/X, instagram.
+#
 #  NOT included (by design - you said no cookies):
-#    fb_state.json, twitter_state.json, browser_profiles/, fb-login/
+#    fb_state.json, twitter_state.json, ig_state.json, browser_profiles/, fb-login/
 #    -> run login.sh once per platform on the new machine to create them.
 #
 #  Overridable env vars: PROJECT_DIR SKILL_DIR VENV PY_BIN
@@ -80,20 +82,22 @@ ok "$PY_BIN -> $("$PY_BIN" -V 2>&1)"
 say "2/7  project code -> $PROJECT_DIR"
 mkdir -p "$PROJECT_DIR"
 for f in login.py server.py cleaner.py browser_stealth.py \
-         test_cleaner.py test_cleaner_twitter.py README.md requirements.txt; do
+         test_cleaner.py test_cleaner_twitter.py test_cleaner_instagram.py \
+         README.md requirements.txt; do
   install -m 644 "$REPO_DIR/social-media/$f" "$PROJECT_DIR/$f"
 done
 chmod 755 "$PROJECT_DIR"/*.py
-# the only two hardcoded paths in the codebase live in the test scripts
-for f in test_cleaner.py test_cleaner_twitter.py; do
+# the only hardcoded paths in the codebase live in the test scripts
+for f in test_cleaner.py test_cleaner_twitter.py test_cleaner_instagram.py; do
   sed -i -e "s|/home/openclaw/hermesworkspace/social-media|$PROJECT_DIR|g" \
          -e "s|/home/openclaw|$HOME|g" "$PROJECT_DIR/$f"
 done
-ok "7 source files + requirements.txt installed ($PROJECT_DIR)"
-if [ -f "$PROJECT_DIR/fb_state.json" ] || [ -f "$PROJECT_DIR/twitter_state.json" ]; then
+ok "8 source files + requirements.txt installed ($PROJECT_DIR)"
+if [ -f "$PROJECT_DIR/fb_state.json" ] || [ -f "$PROJECT_DIR/twitter_state.json" ] \
+   || [ -f "$PROJECT_DIR/ig_state.json" ]; then
   ok "existing session file(s) left untouched (no re-login needed)"
 else
-  warn "no session files yet - run: bash login.sh facebook  (and/or: bash login.sh twitter)"
+  warn "no session files yet - run: bash login.sh facebook  (and/or: twitter, instagram)"
 fi
 
 # ------------------------------------------------------------- 3. hermes skill
@@ -187,6 +191,7 @@ Next, once per platform (needs a GUI - WSLg or an X server):
 
   bash "$REPO_DIR/login.sh" facebook     # -> fb_state.json
   bash "$REPO_DIR/login.sh" twitter      # -> twitter_state.json
+  bash "$REPO_DIR/login.sh" instagram    # -> ig_state.json
 
 Then start it:
 

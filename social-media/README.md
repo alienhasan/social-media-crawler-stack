@@ -1,24 +1,25 @@
-# Social Media Crawler — Facebook & Twitter Authenticated Crawling with Crawl4AI
+# Social Media Crawler — Facebook, Twitter/X & Instagram Authenticated Crawling with Crawl4AI
 
 > Project directory: `/home/openclaw/hermesworkspace/social-media`
-> Last updated: 2026-08-06
+> Last updated: 2026-09-10
 
 ---
 
 ## 1. Project Overview
 
-This project lets you **crawl Facebook and Twitter/X pages with your own
-logged-in accounts** using [Crawl4AI](https://github.com/unclecode/crawl4ai)
+This project lets you **crawl Facebook, Twitter/X and Instagram pages with your
+own logged-in accounts** using [Crawl4AI](https://github.com/unclecode/crawl4ai)
 (v0.9.2). The main pieces:
 
 | File | Role |
 |---|---|
-| `login.py` | Opens a **visible (headed) browser**, you log in manually (Facebook **or** Twitter/X), and it saves your authenticated session (cookies + localStorage) to `fb_state.json` / `twitter_state.json`. The browser **stays open until you close it**. |
-| `server.py` | Flask API server (port **3000**) that loads both session files and crawls any URL — including Facebook and X pages — **headlessly with your login cookies**, returning cleaned markdown (noise-filtered by `cleaner.py`) and **structured post JSON for Twitter (X) search pages**. The platform is auto-detected from the URL. |
-| `cleaner.py` | **Data cleaner** — strips Facebook **and** Twitter chrome / nav / suggestions / sponsored content / reaction counts / notification alerts from the raw markdown before it is returned. |
+| `login.py` | Opens a **visible (headed) browser**, you log in manually (Facebook, Twitter/X **or** Instagram), and it saves your authenticated session (cookies + localStorage) to `fb_state.json` / `twitter_state.json` / `ig_state.json`. The browser **stays open until you close it**. |
+| `server.py` | Flask API server (port **3000**) that loads all session files and crawls any URL — including Facebook, X and Instagram pages — **headlessly with your login cookies**, returning cleaned markdown (noise-filtered by `cleaner.py`) and **structured post JSON for Twitter (X) search pages**. The platform is auto-detected from the URL. |
+| `cleaner.py` | **Data cleaner** — strips Facebook, Twitter **and** Instagram chrome / nav / suggestions / sponsored content / reaction counts / notification alerts from the raw markdown before it is returned. |
 | `browser_stealth.py` | **Browser-authenticity (stealth) config** shared by `login.py` and `server.py` — real Linux Chrome/151 UA, realistic viewport, `navigator.webdriver` hidden, WebGL kept alive, `window.chrome.runtime` restored, notifications permission normalized, persistent profiles. |
 | `test_cleaner.py` | Unit tests for the cleaner (Facebook fixture — 27 assertions). |
 | `test_cleaner_twitter.py` | Unit tests for the cleaner (Twitter/X fixture — 31 assertions). |
+| `test_cleaner_instagram.py` | Unit tests for the cleaner (Instagram fixture — 25 assertions). |
 
 **Pipeline (Facebook):**
 
@@ -45,23 +46,39 @@ POST /crawl {"url": "https://x.com/..."} ─────────────
         └──► headless Chromium + your cookies ──► page HTML/markdown
 ```
 
+**Pipeline (Instagram):**
+
+```
+python login.py --platform instagram ──►  manual IG login  ──►  ig_state.json
+                                                                │
+python server.py ──►  loads all session files ──────────────────┤
+        │                                                       │
+POST /crawl {"url": "https://www.instagram.com/<user>/"} ───────┘
+        │                    (instagram.com URLs use the Instagram session
+        │                     automatically; x.com → Twitter, everything else → Facebook)
+        └──► headless Chromium + your cookies ──► page HTML/markdown
+```
+
 ---
 
 ## 2. Project Structure
 
 ```
 /home/openclaw/hermesworkspace/social-media/
-├── login.py          # (10 KB) Manual login (Facebook default, Twitter via --platform) → fb_state.json / twitter_state.json
-├── server.py         # (14 KB) Flask API: authenticated crawling + platform auto-detection + search extraction + cleaner wiring
-├── cleaner.py        # (20 KB) Data cleaner: 3-tier line-based FB + Twitter noise filter
+├── login.py          # (11 KB) Manual login (Facebook default, Twitter/X + Instagram via --platform) → fb_state.json / twitter_state.json / ig_state.json
+├── server.py         # (15 KB) Flask API: authenticated crawling + platform auto-detection + search extraction + cleaner wiring
+├── cleaner.py        # (23 KB) Data cleaner: 3-tier line-based FB + Twitter/X + Instagram noise filter
 ├── test_cleaner.py   # (4.9 KB) Unit tests for cleaner.py Facebook path (27 assertions)
 ├── test_cleaner_twitter.py  # (4.9 KB) Unit tests for cleaner.py Twitter/X path (31 assertions)
+├── test_cleaner_instagram.py# (4.7 KB) Unit tests for cleaner.py Instagram path (25 assertions)
 ├── fb_state.json     # (2.3 KB) Saved Facebook session (cookies + origins) — YOUR login
 ├── twitter_state.json# (created by `login.py --platform twitter`) Saved X session
+├── ig_state.json     # (created by `login.py --platform instagram`) Saved Instagram session
 ├── browser_stealth.py# (6.5 KB) Shared stealth config: real UA, viewport, init script, persistent profiles
 ├── browser_profiles/ # Persistent browser profiles (real history/cache) — created on first run
 │   ├── facebook/     #   login.py (Facebook) profile
 │   ├── twitter/      #   login.py --platform twitter profile
+│   ├── instagram/    #   login.py --platform instagram profile
 │   └── server/       #   server.py headless crawl profile
 ├── venv/             # Python 3.12.3 virtual environment
 │   └── lib/python3.12/site-packages/
@@ -226,6 +243,37 @@ How it works:
 - Single-tweet and profile URLs keep the **existing cleaned-markdown output
   exactly as before** — only `x.com/search?…` URLs take this path.
 
+### 3.5 Instagram (`instagram.com`)
+
+Instagram profiles, posts and Reels are crawled through the **same markdown
+path as Facebook** — no custom extractor — with an Instagram-tuned crawler
+config and its own cleaner pattern set (`platform="instagram"`).
+
+| Aspect | Value | Why |
+|---|---|---|
+| Session | `ig_state.json` (login cookie `sessionid`) | IG sets `sessionid` only after a real login |
+| Profile dir | `browser_profiles/instagram/` (login), `browser_profiles/server/` (crawl) | persistent, one browser instance per profile |
+| `wait_until` | `domcontentloaded` | IG is a React SPA; its `load` event can stay pending indefinitely (same class of problem as X search pages) |
+| `page_timeout` | 90 s | slower than FB's 60 s |
+| `delay_before_return_html` | 4.0 s | feed/profile grid renders after hydration |
+| `scan_full_page` / `scroll_delay` | on / 0.5 s | the profile grid + feed lazy-load |
+| `max_scroll_steps` (default) | **20** | override per request like the other platforms |
+| Cleaner | `platform="instagram"` | IG chrome differs from FB/X: nav rail (`Home/Search/Explore/Reels/Messages/Notifications/Threads`), Follow/Message buttons, follower stats, "Suggested for you", "More posts from …", `Liked by … and N others`, the `Log in to like or comment` wall, and IG's **joined-together footer language list** (dropped when 4+ language names appear on one line) |
+
+Bengali IG UI strings (`ফলো করুন`, `শেয়ার`, `সেভ`, `আরও দেখুন`, `নোটিফিকেশন`, …)
+are filtered by the same pattern set, so both English and Bengali accounts
+produce clean output.
+
+**What survives cleaning** (the lead-gen signal): the username line, the profile
+bio, the location line, post captions (English + Bengali), and real comments —
+including comments that contain a phone number or a question, which is exactly
+what you want to pitch automation services against.
+
+**Known limitation:** a *suggested-account* handle line (e.g. a row under
+"Suggested for you") can survive, because it is indistinguishable from a real
+username line without page context. Same class of residue as FB's
+people-you-may-know cards. Everything else in the IG chrome is filtered.
+
 ---
 
 ## 4. API Reference
@@ -237,11 +285,14 @@ curl http://localhost:3000/health
 ```
 
 ```json
-{ "status": "ok", "session_loaded": true, "twitter_session_loaded": false, "port": 3000 }
+{ "status": "ok", "session_loaded": true, "twitter_session_loaded": false,
+  "instagram_session_loaded": false, "port": 3000 }
 ```
 
 (`session_loaded` = Facebook session present, `twitter_session_loaded` =
-Twitter/X session present.)
+Twitter/X session present, `instagram_session_loaded` = Instagram session
+present. A `false` just means that platform's `login.py` run has not happened
+yet — the server still works for the platforms that have sessions.)
 
 ### `POST /crawl`
 
@@ -259,6 +310,20 @@ curl -X POST http://localhost:3000/crawl \
   -H "Content-Type: application/json" \
   -d '{"url": "https://x.com/some-user"}'
 ```
+
+Instagram works the same way too — pass an `instagram.com` URL and the
+Instagram session (see section 3.5):
+
+```bash
+curl -X POST http://localhost:3000/crawl \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.instagram.com/some-user/"}'
+```
+
+Optional body fields: `max_scroll_steps` (int), `clean` (bool, default `true`),
+`exclude_patterns` (list of extra regexes), `platform`
+(`"facebook"` / `"twitter"` / `"instagram"` — normally auto-detected from the
+URL).
 
 **Twitter (X) search pages** (`x.com/search?q=…&src=typed_query[&f=live]`)
 return structured post objects (author, text, url, timestamp, media,
@@ -466,6 +531,35 @@ tweets (SpaceX broadcast post, replies, author lines). **Measured on the
 authenticated single-tweet crawl** (`x.com/GeminiApp/status/…`): 6,985 chars
 in → **1,259 chars out (82 % removed)** — the tweet, its link and all replies
 kept; status-page chrome removed.
+
+### 5.6 Instagram cleaning (what the Instagram pattern set removes)
+
+`clean_markdown(..., platform="instagram")` uses a third pattern set (IG chrome
+is neither FB's nor X's):
+
+| Noise | Example | Removed by |
+|---|---|---|
+| Nav rail / tabs | `Home`, `Search`, `Explore`, `Reels`, `Messages`, `Notifications`, `Create`, `Threads`, `More`, `Profile`, `HomeSearchExploreReels…` (concatenated), `PostsReelsTagged` | Tier 3 |
+| Action bar | `Like`, `Comment`, `Share`, `Save`, `Send`, `Embed`, `Report`, `Copy link`, `Add to story` | Tier 3 |
+| Follow chrome | `Follow`, `Following`, `Follow back`, `Message`, `Verified`, `Requested` | Tier 3 |
+| Counts / stats | `1,234 posts`, `12.4K followers`, `890 following`, `45 likes` | Tier 3 |
+| Timestamps | `2 hours ago`, `3d`, `January 5`, `January 5, 2026` | Tier 3 |
+| Likes line | `Liked by karim_uddin and 45 others`, `Followed by rahim_ahmed and 12 others` | Tier 3 |
+| Login wall / composer | `Log in to like or comment`, `Add a comment`, `Create an account or log in`, `Log in` (any leading), `Post` | Tier 1 / Tier 3 |
+| Suggestions | `Suggested for you`, `Discover people`, `Accounts you follow` | Tier 1 |
+| Profile blocks | `More posts from <user>`, `View more on Instagram`, `See photos and videos from <user>`, `Edit profile`, `Share profile`, `Switch accounts` | Tier 1 / Tier 2 |
+| Footer links | `About Blog Jobs Help API Privacy Terms Locations Instagram Lite Threads`, `Contact Uploading & Non-Users`, `Meta Verified` | Tier 2 / Tier 3 |
+| Footer copyright | `© 2026 Instagram from Meta` | Tier 2 |
+| Footer **language blob** | `AfrikaansČeštinaDanskDeutschΕλληνικάEnglish…বাংলা` all on ONE line | `IG_LANG_HITS` rule (≥ 4 language names on a line) |
+| Bengali IG UI | `ফলো করুন`, `শেয়ার`, `সেভ`, `আরও দেখুন`, `নোটিফিকেশন`, `সেভ করা` | Tier 3 |
+
+**Kept:** username, bio/caption text, location line, real comments.
+**Measured on the cleaner unit-test fixture** (`test_cleaner_instagram.py`,
+44 synthetic lines mirroring a logged-in business profile): 1,039 chars in →
+**284 chars out (73 % noise removed)**, 39 of 44 lines dropped, 5 kept
+(username, Bengali bio, location, one suggested-handle line, one real Bengali
+comment asking for a price). The suggested-handle line is a known survivor —
+see section 3.5.
 
 ---
 
@@ -710,12 +804,20 @@ cd /home/openclaw/hermesworkspace/social-media
 venv/bin/python login.py --platform twitter
 ```
 
+Instagram:
+
+```bash
+cd /home/openclaw/hermesworkspace/social-media
+venv/bin/python login.py --platform instagram
+```
+
 - A browser window opens on the platform's login page
-  (`https://www.facebook.com/` or `https://x.com/`).
+  (`https://www.facebook.com/`, `https://x.com/` or
+  `https://www.instagram.com/`).
 - Log in manually (2FA/checkpoints work normally — it's a real browser).
 - The session is saved **automatically** once the login cookie is detected
-  (`c_user` for Facebook, `auth_token` for X), or press **Enter** to save
-  manually.
+  (`c_user` for Facebook, `auth_token` for X, `sessionid` for Instagram), or
+  press **Enter** to save manually.
 - The browser **stays open** until you press **Enter** (or Ctrl+C) to close it.
 
 ### Step 2 — Start the crawling server
@@ -725,7 +827,7 @@ cd /home/openclaw/hermesworkspace/social-media
 venv/bin/python server.py
 ```
 
-Wait for `🚀 Crawl4AI সার্ভার চালু হচ্ছে http://localhost:3000`. Both session
+Wait for `🚀 Crawl4AI সার্ভার চালু হচ্ছে http://localhost:3000`. All session
 files are loaded at startup (missing ones are reported and skipped).
 
 ### Step 3 — Crawl
@@ -752,6 +854,14 @@ Twitter / X search (returns structured post JSON — see section 3.4):
 curl -X POST http://localhost:3000/crawl \
   -H "Content-Type: application/json" \
   -d '{"url": "https://x.com/search?q=automation%20services&src=typed_query&f=live", "max_scroll_steps": 120}'
+```
+
+Instagram (profile / post / Reels — see section 3.5):
+
+```bash
+curl -X POST http://localhost:3000/crawl \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.instagram.com/some-user/", "max_scroll_steps": 20}'
 ```
 
 ---

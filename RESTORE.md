@@ -18,12 +18,13 @@ it exists only as a byte-identical local archive.
 | `social-media/server.py` | `social-media/server.py` | same dir |
 | `social-media/cleaner.py` | `social-media/cleaner.py` | same dir |
 | `social-media/browser_stealth.py` | `social-media/browser_stealth.py` | same dir |
-| `social-media/test_cleaner*.py` | same | same dir (hardcoded `/home/openclaw` path rewritten to `$PROJECT_DIR`) |
+| `social-media/test_cleaner*.py` (3 files) | same | same dir (hardcoded `/home/openclaw` path rewritten to `$PROJECT_DIR`) |
 | `social-media/README.md` (49 KB) | same | same dir |
 | `social-media/venv/` (823 MB) | — | **rebuilt**: `python3.12 -m venv` + `pip install -r requirements.txt` |
 | `external/ms-playwright/chromium-1234*` | — | **rebuilt**: `playwright install chromium` (playwright 1.62.0 pins 1234) |
 | `social-media/fb_state.json` | — | **re-created** by `login.sh facebook` (cookie, excluded on purpose) |
 | `social-media/twitter_state.json` | — | **re-created** by `login.sh twitter` (cookie, excluded on purpose) |
+| `social-media/ig_state.json` | — | **re-created** by `login.sh instagram` (cookie, excluded on purpose) |
 | `social-media/browser_profiles/` (1.5 GB) | — | re-created on first `login.sh` / server run |
 | `social-media/fb-login/facebook-browser/` (61 MB) | — | dead scratch profile, not needed |
 | `~/.hermes/skills/SocialMediacrawler/SKILL.md` | `SocialMediacrawler-skill/SKILL.md` | `~/.hermes/skills/SocialMediacrawler/SKILL.md` (paths rewritten) |
@@ -44,6 +45,7 @@ cd social-media-crawler-stack
 bash setup.sh                 # venv + 97 pinned pkgs + chromium 1234
 bash login.sh facebook        # visible browser, log in, press Enter
 bash login.sh twitter         # (optional, only if you crawl X)
+bash login.sh instagram       # (optional, only if you crawl Instagram)
 bash run.sh                   # http://localhost:3000
 ```
 
@@ -53,8 +55,9 @@ Verify:
 curl -s http://localhost:3000/health     # expect "status": "ok"
 ```
 
-Expect `session_loaded` / `twitter_session_loaded` to be `false` until the
-matching `login.sh` has run — that is normal on a fresh machine.
+Expect `instagram_session_loaded` / `session_loaded` / `twitter_session_loaded`
+to be `false` for any platform whose `login.sh` has not run — that is normal on
+a fresh machine.
 
 ## Target-machine requirements
 

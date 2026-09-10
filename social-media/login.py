@@ -9,6 +9,7 @@ server.py loads via BrowserConfig(storage_state=...).
 Supported platforms:
     facebook (default) -> https://www.facebook.com/  -> fb_state.json
     twitter            -> https://x.com/             -> twitter_state.json
+    instagram          -> https://www.instagram.com/ -> ig_state.json
 
 The browser NEVER closes by itself — it stays open until you press Enter in the
 terminal (or Ctrl+C). When a successful login is detected (or you press Enter),
@@ -17,6 +18,7 @@ the current session is saved to the platform's state file.
 Usage:
     python login.py                    # Facebook (default)
     python login.py --platform twitter # Twitter / X
+    python login.py --platform instagram
 """
 
 import argparse
@@ -56,8 +58,9 @@ def ensure_display() -> None:
 
 # ---------------------------------------------------------------------------
 # Platform configuration. `--platform` chooses which one to log into:
-#   facebook (default) -> fb_state.json, login detected via the c_user cookie
-#   twitter            -> twitter_state.json, login detected via auth_token
+#   facebook  (default) -> fb_state.json, login detected via the c_user cookie
+#   twitter             -> twitter_state.json, login detected via auth_token
+#   instagram           -> ig_state.json, login detected via sessionid
 # ---------------------------------------------------------------------------
 PLATFORMS = {
     "facebook": {
@@ -72,12 +75,19 @@ PLATFORMS = {
         "state_file": "twitter_state.json",
         "login_cookie": "auth_token",  # X sets this only after a successful login
     },
+    "instagram": {
+        "name": "Instagram",
+        "url": "https://www.instagram.com/",
+        "state_file": "ig_state.json",
+        # IG sets `sessionid` (and ds_user_id) only after a successful login
+        "login_cookie": "sessionid",
+    },
 }
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Manual social-media login session saver (Facebook or Twitter/X)."
+        description="Manual social-media login session saver (Facebook, Twitter/X or Instagram)."
     )
     parser.add_argument(
         "--platform",

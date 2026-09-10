@@ -1,6 +1,7 @@
 # secrets / session cookies - never commit
 fb_state.json
 twitter_state.json
+ig_state.json
 *.state.json
 
 # live browser profiles (login cookies)

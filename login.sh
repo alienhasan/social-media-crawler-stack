@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Capture a login session for the crawler (Facebook or Twitter/X).
+# Capture a login session for the crawler (Facebook, Twitter/X or Instagram).
 #
 #   bash login.sh facebook     # default -> fb_state.json
 #   bash login.sh twitter      # -> twitter_state.json
+#   bash login.sh instagram    # -> ig_state.json
 #
 # Opens a VISIBLE chromium (needs a GUI: WSLg on Win11, or an X server) with a
 # persistent stealth profile. Log in by hand, then press Enter in this terminal

@@ -64,12 +64,24 @@ except FileNotFoundError:
     print("⚠️ twitter_state.json পাওয়া যায়নি! আগে login.py --platform twitter চালান।")
     TWITTER_STORAGE_STATE = None
 
+# সেশন ফাইল লোড করুন — Instagram
+try:
+    with open("ig_state.json", "r") as f:
+        INSTAGRAM_STORAGE_STATE = json.load(f)
+    print("✅ ইনস্টাগ্রাম সেশন লোড হয়েছে (ig_state.json)")
+except FileNotFoundError:
+    print("⚠️ ig_state.json পাওয়া যায়নি! আগে login.py --platform instagram চালান।")
+    INSTAGRAM_STORAGE_STATE = None
+
 
 def detect_platform(url: str) -> str:
-    """URL দেখে platform চেনে: x.com / twitter.com → twitter, বাকি সব → facebook"""
+    """URL দেখে platform চেনে:
+    x.com / twitter.com → twitter, instagram.com → instagram, বাকি সব → facebook"""
     u = (url or "").lower()
     if "x.com" in u or "twitter.com" in u:
         return "twitter"
+    if "instagram.com" in u or "instagr.am" in u:
+        return "instagram"
     return "facebook"
 
 
@@ -175,18 +187,29 @@ TWITTER_SEARCH_EXTRACT_JS = r"""async (opts) => {
 
 async def crawl_url(target_url, max_scroll_steps=None, clean=True, extra_patterns=None, platform=None):
     """একটি URL ক্রল করে পরিষ্কার করা content রিটার্ন করে"""
-    if platform not in ("facebook", "twitter"):
+    if platform not in ("facebook", "twitter", "instagram"):
         platform = detect_platform(target_url)
 
     # Twitter (X) search pages: structured extraction + more scrolling
     is_search = platform == "twitter" and is_twitter_search_url(target_url)
+    # Instagram-এর profile/explore পেজও lazy-load — বেশি scroll লাগে
+    is_instagram = platform == "instagram"
     if max_scroll_steps is None:
-        max_scroll_steps = 60 if is_search else 15
+        if is_search:
+            max_scroll_steps = 60
+        elif is_instagram:
+            max_scroll_steps = 20
+        else:
+            max_scroll_steps = 15
 
     if platform == "twitter":
         storage = TWITTER_STORAGE_STATE
         if not storage:
             return {"error": "টুইটার সেশন পাওয়া যায়নি। আগে login.py --platform twitter চালান।"}
+    elif platform == "instagram":
+        storage = INSTAGRAM_STORAGE_STATE
+        if not storage:
+            return {"error": "ইনস্টাগ্রাম সেশন পাওয়া যায়নি। আগে login.py --platform instagram চালান।"}
     else:
         storage = STORAGE_STATE
         if not storage:
@@ -197,7 +220,7 @@ async def crawl_url(target_url, max_scroll_steps=None, clean=True, extra_pattern
         **stealth_kwargs(user_data_dir=SERVER_PROFILE_DIR)  # real-browser fingerprint
     )
 
-    # Facebook/Twitter posts লোড হয় lazily (scroll করলে)। তাই:
+    # Facebook/Twitter/Instagram posts লোড হয় lazily (scroll করলে)। তাই:
     # - wait_until="load": পেজ শেল লোড হওয়া পর্যন্ত অপেক্ষা
     # - delay_before_return_html: posts render হওয়ার জন্য সময় দিন
     # - scan_full_page + scroll: নিচে স্ক্রল করে বেশি posts লোড করান
@@ -206,12 +229,13 @@ async def crawl_url(target_url, max_scroll_steps=None, clean=True, extra_pattern
     run_config = CrawlerRunConfig(
         verbose=False,
         # search pages-এ "load" কখনো শেষ হয় না (X সারাক্ষণ লোড করে) → domcontentloaded
-        wait_until="domcontentloaded" if is_search else "load",
-        page_timeout=120000 if is_search else 60000,
-        delay_before_return_html=2.5 if is_search else 3.0,
+        # Instagram-ও React SPA: "load" অনির্দিষ্টকাল ধরে চলতে পারে → domcontentloaded
+        wait_until="domcontentloaded" if (is_search or is_instagram) else "load",
+        page_timeout=120000 if is_search else (90000 if is_instagram else 60000),
+        delay_before_return_html=2.5 if is_search else (4.0 if is_instagram else 3.0),
         # search pages-এ scroll নিজের JS দিয়ে হয় — Crawl4AI-এর scroll X-এ তাড়াতাড়ি থেমে যায়
         scan_full_page=not is_search,
-        scroll_delay=0.4,
+        scroll_delay=0.5 if is_instagram else 0.4,
         max_scroll_steps=0 if is_search else max_scroll_steps,
         session_id=session_id,
     )
@@ -285,9 +309,9 @@ def crawl():
         clean = clean.lower() not in ("false", "0", "no")
     # optional: অতিরিক্ত noise প্যাটার্ন (regex list) — নিজের মতো ফিল্টার যোগ করতে
     extra_patterns = data.get('exclude_patterns') or None
-    # optional: platform ঠিক করে দেওয়া ("facebook"/"twitter"); না দিলে URL থেকে চেনা হয়
+    # optional: platform ঠিক করে দেওয়া ("facebook"/"twitter"/"instagram"); না দিলে URL থেকে চেনা হয়
     platform = data.get('platform')
-    if platform not in ("facebook", "twitter"):
+    if platform not in ("facebook", "twitter", "instagram"):
         platform = None
 
     # Asynchronous ফাংশনটি synchronous ভাবে চালান
@@ -307,6 +331,7 @@ def health():
         "status": "ok",
         "session_loaded": STORAGE_STATE is not None,
         "twitter_session_loaded": TWITTER_STORAGE_STATE is not None,
+        "instagram_session_loaded": INSTAGRAM_STORAGE_STATE is not None,
         "port": 3000
     })
 
@@ -314,5 +339,6 @@ if __name__ == '__main__':
     print("🚀 Crawl4AI সার্ভার চালু হচ্ছে http://localhost:3000")
     print("📌 POST /crawl - { 'url': 'https://facebook.com/some-page' }")
     print("📌 POST /crawl - { 'url': 'https://x.com/some-user' } (টুইটার)")
+    print("📌 POST /crawl - { 'url': 'https://www.instagram.com/some-user/' } (ইনস্টাগ্রাম)")
     print("📌 GET /health - সার্ভার স্ট্যাটাস চেক")
     app.run(host='0.0.0.0', port=3000, debug=False)
