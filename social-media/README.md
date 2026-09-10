@@ -19,7 +19,7 @@ own logged-in accounts** using [Crawl4AI](https://github.com/unclecode/crawl4ai)
 | `browser_stealth.py` | **Browser-authenticity (stealth) config** shared by `login.py` and `server.py` — real Linux Chrome/151 UA, realistic viewport, `navigator.webdriver` hidden, WebGL kept alive, `window.chrome.runtime` restored, notifications permission normalized, persistent profiles. |
 | `test_cleaner.py` | Unit tests for the cleaner (Facebook fixture — 27 assertions). |
 | `test_cleaner_twitter.py` | Unit tests for the cleaner (Twitter/X fixture — 31 assertions). |
-| `test_cleaner_instagram.py` | Unit tests for the cleaner (Instagram fixture — 25 assertions). |
+| `test_cleaner_instagram.py` | Unit tests for the cleaner (Instagram fixture — 35 assertions). |
 
 **Pipeline (Facebook):**
 
@@ -70,7 +70,7 @@ POST /crawl {"url": "https://www.instagram.com/<user>/"} ───────�
 ├── cleaner.py        # (23 KB) Data cleaner: 3-tier line-based FB + Twitter/X + Instagram noise filter
 ├── test_cleaner.py   # (4.9 KB) Unit tests for cleaner.py Facebook path (27 assertions)
 ├── test_cleaner_twitter.py  # (4.9 KB) Unit tests for cleaner.py Twitter/X path (31 assertions)
-├── test_cleaner_instagram.py# (4.7 KB) Unit tests for cleaner.py Instagram path (25 assertions)
+├── test_cleaner_instagram.py# (5.6 KB) Unit tests for cleaner.py Instagram path (35 assertions)
 ├── fb_state.json     # (2.3 KB) Saved Facebook session (cookies + origins) — YOUR login
 ├── twitter_state.json# (created by `login.py --platform twitter`) Saved X session
 ├── ig_state.json     # (created by `login.py --platform instagram`) Saved Instagram session
@@ -555,11 +555,27 @@ is neither FB's nor X's):
 
 **Kept:** username, bio/caption text, location line, real comments.
 **Measured on the cleaner unit-test fixture** (`test_cleaner_instagram.py`,
-44 synthetic lines mirroring a logged-in business profile): 1,039 chars in →
-**284 chars out (73 % noise removed)**, 39 of 44 lines dropped, 5 kept
+52 synthetic lines mirroring a logged-in business profile): 1,317 chars in →
+**284 chars out (78 % noise removed)**, 49 of 52 lines dropped, 5 kept
 (username, Bengali bio, location, one suggested-handle line, one real Bengali
 comment asking for a price). The suggested-handle line is a known survivor —
 see section 3.5.
+
+**Measured on live crawls of public accounts (2026-09-10, anonymous session —
+Instagram shows a login interstitial when logged out, so treat these as the
+worst case, not the authenticated case):**
+
+| URL | Raw markdown | Cleaned | Removed | Kept |
+|---|---|---|---|---|
+| `instagram.com/nike/` (profile, 4 scroll steps) | 11,637 chars | 49 chars | 100 % | 4 lines (username, name, bio, bio link) |
+| `instagram.com/nike/p/DcwHiIvDv5Q/` (single post, 3 scroll steps) | 19,587 chars | 1,490 chars | **92 %** | 19 lines — the caption **and 15 real comments with their author handles + timestamps** |
+| `instagram.com/nikebasketball/` (profile, 6 scroll steps) | 22,272 chars | 217 chars | 99 % | 12 lines |
+
+The single-post result is the one that matters for lead-gen: the caption, the
+commenter handles and the comment text (including a comment asking Nike to sign
+someone) all survive, while the nav rail, badges, tag row, "Load more comments",
+"More options", the Threads CTA and the login wall are removed. Post HTML is
+~1 MB per page; the cleaner is what makes it usable.
 
 ---
 
@@ -898,6 +914,22 @@ Everything below was **executed and confirmed** on this machine:
 | `platform` override param (`"platform": "twitter"` on a facebook.com URL) | ✅ honored — crawl ran with the Twitter session |
 | `cleaner.py` Twitter path | ✅ 31/31 `test_cleaner_twitter.py` assertions pass |
 | Facebook regression (final code) | ✅ `POST /crawl` `facebook.com/zuck` still `success: True`, `platform: "facebook"`, 3.86 MB HTML, 97 % noise removed, logged-in state (`Comment as HT Hasan`) intact |
+
+**Instagram support (added 2026-09-10):**
+
+| Check | Result |
+|---|---|
+| `login.py --platform instagram` registered | ✅ `--platform {facebook,instagram,twitter}`, opens `https://www.instagram.com/`, saves `ig_state.json` on the `sessionid` cookie |
+| `GET /health` → `instagram_session_loaded` | ✅ `false` when `ig_state.json` absent, `true` when present |
+| `POST /crawl` with an `instagram.com` URL, no IG session | ✅ `{ "error": "ইনস্টাগ্রাম সেশন পাওয়া যায়নি। আগে login.py --platform instagram চালান।" }` |
+| Platform auto-detection for `instagram.com` / `instagr.am` | ✅ `platform: "instagram"` (x.com → twitter, everything else → facebook, unchanged) |
+| `POST /crawl` `https://www.instagram.com/nike/` (anonymous session stub, 4 scroll steps) | ✅ `success: True`, `platform: "instagram"`, 832 KB HTML, 11,637 chars → **49 chars (100 % removed)** — only username/name/bio/bio-link survive the logged-out interstitial |
+| `POST /crawl` real post `https://www.instagram.com/nike/p/DcwHiIvDv5Q/` (3 scroll steps) | ✅ 995 KB HTML, 19,587 chars → **1,490 chars (92 % removed)**; caption + **15 real comments with author handles and timestamps** kept, all IG chrome removed |
+| `POST /crawl` `https://www.instagram.com/nikebasketball/` (6 scroll steps) | ✅ 921 KB HTML, 22,272 chars → 217 chars (99 % removed) |
+| Twitter routing regression (`x.com` URL, no X session) | ✅ still returns the Twitter session-missing error, not the Instagram one |
+| `test_cleaner_instagram.py` | ✅ **35/35 assertions pass** (nav rail, Follow/Message, stats, Suggested for you, `Liked by … and N others`, login wall, consent line, icon alt-text, footer links, language blob, Bengali IG UI removed; username/bio/location/real comments kept) |
+| Facebook + Twitter cleaner regression | ✅ 27/27 and 31/31 still pass with the Instagram code in place |
+| ⚠️ **NOT tested:** authenticated Instagram crawl (a logged-in IG profile/post) | ❌ requires `login.sh instagram` with your own credentials — the agent has none. The anonymous results above are the worst case (IG serves a login interstitial); run it once and the profile/post content replaces the interstitial lines |
 
 **Stealth hardening (added 2026-08-06):**
 

@@ -271,17 +271,18 @@ INSTAGRAM_STRONG_LABELS = [
     r"^edit profile",
     r"^share profile",
     r"^add a comment",
-    r"^see photos and videos from",   # "See photos and videos from <user>"
+    r"^see photos\b.*\bfrom\b",       # "See photos and videos from <user>" /
+                                      # "See photos, videos and more from <user>"
     r"^never miss a post",
     r"^something went wrong",
     r"^suggested for you",
     r"^more posts from",
     r"^view more on instagram",
     r"^discover people",
-    r"^accounts you follow",
+    r"^accounts you\b",               # "Accounts you follow" / "Accounts you might like"
     r"^meta verified",
     r"^instagram lite",
-    r"^contact uploading and non-users",
+    r"^contact uploading (?:&|and) non-users",
     r"^threads terms",
     r"^see everyday moments from your close friends",
 ]
@@ -289,18 +290,23 @@ INSTAGRAM_STRONG_LABELS = [
 INSTAGRAM_ALL_LINE_PATTERNS = [
     r"log in to like or comment",
     r"create an account or log in",
-    r"see photos and videos from",
+    r"see photos\b.*\bfrom\b",
     r"never miss a post",
     r"more posts from",
     r"view more on instagram",
     r"instagram lite",
-    r"contact uploading and non-users",
     r"meta verified",
     r"threads terms",
     r"see translation",
     r"অনুবাদ দেখুন",
+    r"load more comments",
     r"©\s*\d{4}\s*instagram from meta",   # footer copyright
+    r"contact uploading (?:&|and) non-users",
+    r"by continuing, you agree",          # login-interstitial consent line
+    r"terms of use and privacy policy",
     r"instagram from meta",
+    r"instagram\s?log\s?in",              # concatenated wall header "InstagramLog in"
+    r"instagram\s?sign\s?up",
 ]
 
 INSTAGRAM_NOISE_PATTERNS = [
@@ -315,7 +321,14 @@ INSTAGRAM_NOISE_PATTERNS = [
     r"^(liked by|followed by)\b.*\b(and \d+ others?|others)\s*$",
     r"^add a comment\s*$",
     r"^post\s*$",
+    r"^more options\s*$",
+    r"^threads [\w.@]{2,30}\s*$",      # "Threads nikebasketball" (app CTA + handle)
+    r"^[\w.@]{1,30}verified\b.*$",     # "nikeVerified 1w" (author + badge + time glued)
+    r"^[\w.@]+ and \d+ others?\s*$",   # "nike and 2 others"
     r"^\s*(english|english \(uk\)|english \(us\))\s*$",
+    # --- icon alt-text (Crawl4AI surfaces SVG alt attributes as lines) ---
+    r"^[\w\s,.'-]{0,30}\bicon\s*$",              # "Down chevron icon", "Search icon"
+    r"^\s*(image|video|photo) (placeholder|thumbnail)\s*$",
     # --- English: counts / stats / timestamps ---
     r"^\d[\d,.]*[KMB]?\s*(likes?|comments?|views?|posts?|followers?|following|reels?|plays?)\s*$",
     r"^\d[\d,.]*[KMB]?\s+(posts|followers|following)\s*$",

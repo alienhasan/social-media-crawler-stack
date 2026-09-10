@@ -43,6 +43,16 @@ About Blog Jobs Help API Privacy Terms Locations Instagram Lite Threads
 AfrikaansČeštinaDanskDeutschΕλληνικάEnglishEnglish (UK)EspañolSuomiFrançaisMagyarBahasa IndonesiaItaliano日本語한국어NederlandsNorskPolskiPortuguêsРусскийSvenskaTürkçe中文العربيةفارسیעבריתไทยTiếng Việtहिन्दीবাংলা
 © 2026 Instagram from Meta
 More posts from hasan_automation
+See photos, videos and more from hasan_automation
+Contact Uploading & Non-Users
+By continuing, you agree to Instagram's Terms of Use and Privacy Policy.
+Down chevron icon
+InstagramLog in
+nikeVerified 1w
+nike and 2 others
+Load more comments
+More options
+Threads hasan_automation
 ফলো করুন
 শেয়ার
 সেভ
@@ -90,6 +100,18 @@ def main():
     check("footer copyright removed", "Instagram from Meta" not in cleaned)
     check("footer links removed", "Instagram Lite" not in cleaned and "API" not in cleaned)
     check("more-posts block removed", "More posts from" not in cleaned)
+    # real lines observed in a live logged-out crawl of instagram.com/nike (2026-09-10)
+    check("see-photos interstitial removed", "See photos, videos and more from" not in cleaned)
+    check("contact-uploading link removed", "Contact Uploading" not in cleaned)
+    check("consent line removed", "By continuing, you agree" not in cleaned)
+    check("icon alt-text removed", "chevron icon" not in cleaned)
+    check("concatenated wall header removed", "InstagramLog in" not in cleaned)
+    # real lines observed in a live crawl of a public nike post (2026-09-10)
+    check("author+badge+time glued line removed", "nikeVerified 1w" not in cleaned)
+    check("'and N others' tag row removed", "nike and 2 others" not in cleaned)
+    check("load-more-comments removed", "Load more comments" not in cleaned)
+    check("'More options' menu removed", "More options" not in cleaned)
+    check("Threads CTA line removed", "Threads hasan_automation" not in cleaned)
     check("bengali UI removed", "ফলো করুন" not in cleaned and "সেভ" not in cleaned and "আরও দেখুন" not in cleaned)
     # kept: username, bio/caption, location, suggested-handle line, real comment
     check("kept_lines == 5", res["kept_lines"] == 5)

@@ -90,8 +90,25 @@ setup.sh run.sh login.sh
 RESTORE.md                  path mapping + step-by-step restore
 ```
 
-`social-media/README.md` is the full 49 KB engineering doc: API reference,
+`social-media/README.md` is the full 56 KB engineering doc: API reference,
 cleaner internals, and 11 documented root-caused bugs — read it before editing.
+
+## Verified (2026-09-10)
+
+Everything below was executed, not reviewed:
+
+| Check | Result |
+|---|---|
+| `setup.sh` full rebuild into a throwaway sandbox (`/tmp`, no path inside the live tree) | ✅ 97 packages, chromium 1234 + headless shell + ffmpeg, verify block green |
+| Restored copy relocates | ✅ `sys.prefix` / `crawl4ai.__file__` / `playwright.__file__` all resolve inside the sandbox |
+| Test suite on the restored venv | ✅ `test_cleaner.py` 27/27, `test_cleaner_twitter.py` 31/31, `test_cleaner_instagram.py` 35/35 |
+| Restored server boot + `GET /health` | ✅ `{"status":"ok","instagram_session_loaded":true,...}` |
+| `POST /crawl` real Instagram post (`instagram.com/nike/p/DcwHiIvDv5Q/`) | ✅ 995 KB HTML → 19,587 chars → **1,490 chars (92 % removed)**; caption + 15 real comments kept |
+| `POST /crawl` real Instagram profile (`instagram.com/nikebasketball/`) | ✅ 22,272 chars → 217 chars (99 % removed) |
+| Facebook / Twitter routing regressions | ✅ unchanged (session-missing errors and crawls route to the right platform) |
+
+Not covered: an **authenticated** Instagram crawl — that needs `login.sh instagram`
+with your own credentials.
 
 See `RESTORE.md` for the mapping against the local full backup
 (`~/backups/social-media-full-backup-2026-08-06.tar.gz`, 832 MB).
